@@ -1,0 +1,138 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Core colors */
+    --background: 0 0% 100%;
+    --foreground: 220 14% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 14% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 14% 10%;
+
+    /* Primary - Deep blue */
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 239 100% 75%;
+
+    /* Secondary - Soft purple */
+    --secondary: 270 60% 96%;
+    --secondary-foreground: 270 60% 20%;
+
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 14% 40%;
+
+    /* Accent - Vibrant purple */
+    --accent: 262 83% 58%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 14% 91%;
+    --input: 220 14% 91%;
+    --ring: 239 84% 67%;
+
+    --radius: 0.75rem;
+
+    /* Sidebar colors */
+    --sidebar-background: 240 6% 98%;
+    --sidebar-foreground: 220 14% 20%;
+    --sidebar-primary: 239 84% 67%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 6% 94%;
+    --sidebar-accent-foreground: 220 14% 20%;
+    --sidebar-border: 220 14% 91%;
+    --sidebar-ring: 239 84% 67%;
+
+    /* Kanban status colors */
+    --kanban-todo: 210 20% 50%;
+    --kanban-progress: 45 93% 47%;
+    --kanban-done: 142 71% 45%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(239 84% 67%), hsl(262 83% 58%));
+    --gradient-secondary: linear-gradient(135deg, hsl(270 60% 70%), hsl(239 100% 75%));
+    --gradient-accent: linear-gradient(180deg, hsl(262 83% 58%), hsl(239 84% 67%));
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(220 14% 98%));
+
+    /* Shadows */
+    --shadow-glow: 0 0 40px hsl(239 84% 67% / 0.3);
+    --shadow-elegant: 0 10px 30px -10px hsl(220 14% 10% / 0.15);
+    --shadow-card: 0 2px 10px hsl(220 14% 10% / 0.08);
+
+    /* Transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .dark {
+    --background: 220 14% 8%;
+    --foreground: 220 14% 96%;
+
+    --card: 220 14% 12%;
+    --card-foreground: 220 14% 96%;
+
+    --popover: 220 14% 12%;
+    --popover-foreground: 220 14% 96%;
+
+    --primary: 239 84% 67%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 239 100% 75%;
+
+    --secondary: 270 60% 20%;
+    --secondary-foreground: 270 60% 96%;
+
+    --muted: 220 14% 16%;
+    --muted-foreground: 220 14% 60%;
+
+    --accent: 262 83% 58%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 14% 20%;
+    --input: 220 14% 20%;
+    --ring: 239 84% 67%;
+
+    --sidebar-background: 220 14% 10%;
+    --sidebar-foreground: 220 14% 90%;
+    --sidebar-primary: 239 84% 67%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 14%;
+    --sidebar-accent-foreground: 220 14% 90%;
+    --sidebar-border: 220 14% 20%;
+    --sidebar-ring: 239 84% 67%;
+
+    --kanban-todo: 210 20% 50%;
+    --kanban-progress: 45 93% 47%;
+    --kanban-done: 142 71% 45%;
+
+    --gradient-primary: linear-gradient(135deg, hsl(239 84% 67%), hsl(262 83% 58%));
+    --gradient-secondary: linear-gradient(135deg, hsl(270 60% 30%), hsl(239 100% 60%));
+    --gradient-accent: linear-gradient(180deg, hsl(262 83% 58%), hsl(239 84% 67%));
+    --gradient-card: linear-gradient(135deg, hsl(220 14% 12%), hsl(220 14% 16%));
+
+    --shadow-glow: 0 0 40px hsl(239 84% 67% / 0.2);
+    --shadow-elegant: 0 10px 30px -10px hsl(0 0% 0% / 0.3);
+    --shadow-card: 0 2px 10px hsl(0 0% 0% / 0.2);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
