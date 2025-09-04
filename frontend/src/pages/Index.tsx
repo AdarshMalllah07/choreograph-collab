@@ -1,19 +1,38 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '@/store/authStore';
+import { useCurrentUser } from '@/hooks/useAuth';
 
 const Index = () => {
   const navigate = useNavigate();
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const { data: userData, isLoading, error } = useCurrentUser();
+  const [hasRedirected, setHasRedirected] = useState(false);
 
   useEffect(() => {
-    // Redirect based on authentication status
-    if (isAuthenticated) {
-      navigate('/dashboard');
-    } else {
-      navigate('/auth');
+    // Don't redirect while loading
+    if (isLoading) return;
+    
+    // Prevent multiple redirects
+    if (hasRedirected) return;
+    
+    // Check for authentication errors
+    if (error && (error.message?.includes('401') || error.message?.includes('Unauthorized'))) {
+      console.log('Index - Auth error detected, redirecting to login');
+      setHasRedirected(true);
+      navigate('/login', { replace: true });
+      return;
     }
-  }, [isAuthenticated, navigate]);
+    
+    // Redirect based on authentication status
+    if (userData?.data && localStorage.getItem('token')) {
+      console.log('Index - User authenticated, redirecting to dashboard');
+      setHasRedirected(true);
+      navigate('/dashboard', { replace: true });
+    } else {
+      console.log('Index - User not authenticated, redirecting to login');
+      setHasRedirected(true);
+      navigate('/login', { replace: true });
+    }
+  }, [userData, isLoading, error, navigate, hasRedirected]);
 
   return null;
 };

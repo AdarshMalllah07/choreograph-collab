@@ -3,18 +3,31 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
-import { connect } from './utils/db';
-import authRouter from './routes/auth.routes';
-import projectRouter from './routes/project.routes';
-import taskRouter from './routes/task.routes';
-import columnRouter from './routes/column.routes';
+import { connect } from './utils/db.js';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import authRouter from './routes/auth.routes.js';
+import projectRouter from './routes/project.routes.js';
+import taskRouter from './routes/task.routes.js';
+import columnRouter from './routes/column.routes.js';
+import userRouter from './routes/user.routes.js';
 
 dotenv.config();
 
 const app = express();
 
 app.use(helmet());
-app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') || '*', credentials: true }));
+// Debug CORS configuration
+const corsOrigins = process.env.CORS_ORIGIN?.split(',') || '*';
+console.log('CORS Origins:', corsOrigins);
+
+app.use(cors({ 
+  origin: corsOrigins, 
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+}));
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan('dev'));
 
@@ -26,14 +39,21 @@ app.use('/api/auth', authRouter);
 app.use('/api/projects', projectRouter);
 app.use('/api/projects', taskRouter);
 app.use('/api/projects', columnRouter);
+app.use('/api/users', userRouter);
 
-const port = Number(process.env.PORT || 5000);
+// Error handling middleware (must be last)
+app.use(notFoundHandler);
+app.use(errorHandler);
+
+const port = Number(process.env.PORT || 5001);
 
 connect()
 	.then(() => {
-		app.listen(port, () => {
+		app.listen(port, '0.0.0.0', () => {
 			// eslint-disable-next-line no-console
-			console.log(`API listening on http://localhost:${port}`);
+			console.log(`API listening on http://0.0.0.0:${port}`);
+			console.log(`Local: http://localhost:${port}`);
+			console.log(`Network: http://192.168.29.220:${port}`);
 		});
 	})
 	.catch((err) => {

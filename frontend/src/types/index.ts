@@ -11,6 +11,7 @@ export interface Project {
   name: string;
   description: string;
   createdAt: Date;
+  
   updatedAt: Date;
   ownerId: string;
   members: string[];
@@ -20,7 +21,7 @@ export interface Task {
   id: string;
   title: string;
   description: string;
-  status: 'todo' | 'in-progress' | 'done';
+  status: 'todo' | 'in-progress' | 'review' | 'done';
   priority: 'low' | 'medium' | 'high';
   assigneeId: string;
   projectId: string;

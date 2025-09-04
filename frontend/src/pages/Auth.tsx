@@ -1,11 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { SignupForm } from '@/components/auth/SignupForm';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, CheckCircle } from 'lucide-react';
 
 export default function Auth() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
+
+  // Set the form type based on the current route
+  useEffect(() => {
+    if (location.pathname === '/signup') {
+      setIsLogin(false);
+    } else if (location.pathname === '/login') {
+      setIsLogin(true);
+    } else {
+      // Default to login for /auth route
+      setIsLogin(true);
+    }
+  }, [location.pathname]);
+
+  const handleFormToggle = () => {
+    const newIsLogin = !isLogin;
+    setIsLogin(newIsLogin);
+    // Navigate to the appropriate route
+    navigate(newIsLogin ? '/login' : '/signup', { replace: true });
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/20">
@@ -14,11 +36,18 @@ export default function Auth() {
           {/* Left side - Hero content */}
           <div className="hidden lg:block space-y-6">
             <div className="space-y-2">
-              <h1 className="text-5xl font-bold">
-                <span className="bg-gradient-primary bg-clip-text text-transparent">
-                  TaskFlow
-                </span>
-              </h1>
+              <div className="flex items-center space-x-4">
+                <img 
+                  src="/appIcons/android-chrome-192x192.png" 
+                  alt="TaskFlow" 
+                  className="h-16 w-16"
+                />
+                <h1 className="text-5xl font-bold">
+                  <span className="bg-gradient-primary bg-clip-text text-transparent">
+                    TaskFlow
+                  </span>
+                </h1>
+              </div>
               <p className="text-2xl text-muted-foreground">
                 Cloud-Based Task Management System
               </p>
@@ -57,7 +86,7 @@ export default function Auth() {
               </p>
               <Button
                 variant="link"
-                onClick={() => setIsLogin(!isLogin)}
+                onClick={handleFormToggle}
                 className="text-primary hover:text-primary/80"
               >
                 {isLogin ? 'Create an account' : 'Sign in'}

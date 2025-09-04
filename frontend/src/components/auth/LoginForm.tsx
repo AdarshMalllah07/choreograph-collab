@@ -1,100 +1,142 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore } from '@/store/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from 'sonner';
-import { Loader2, Mail, Lock } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth, useCurrentUser } from '@/hooks/useAuth';
+import { Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const login = useAuthStore((state) => state.login);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
+  
+  const { login } = useAuth();
+  const { data: userData } = useCurrentUser();
+
+  // Navigate to dashboard when user data is available
+  useEffect(() => {
+    if (userData?.data && localStorage.getItem('token')) {
+      console.log('LoginForm - User data available, navigating to dashboard');
+      navigate('/dashboard');
+    }
+  }, [userData, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    
+    if (!email || !password) {
+      return;
+    }
 
+    console.log('LoginForm - Starting login process...');
+    
     try {
-      const success = await login(email, password);
-      if (success) {
-        toast.success('Welcome back!');
-        navigate('/dashboard');
-      } else {
-        toast.error('Invalid email or password');
-      }
+      const result = await login.mutateAsync({ email, password });
+      console.log('LoginForm - Login API response received:', result);
+      
+      // The useAuth hook will automatically handle token storage and user data
+      // We just need to wait for the user data to be available
+      console.log('LoginForm - Login successful, waiting for user data...');
+      
     } catch (error) {
-      toast.error('An error occurred during login');
-    } finally {
-      setIsLoading(false);
+      console.error('LoginForm - Login failed:', error);
+      // Error is handled by the mutation
     }
   };
 
   return (
-    <Card className="w-full max-w-md bg-gradient-card backdrop-blur-sm border-border/50">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
-        <CardDescription>
-          Enter your credentials to access your account
-        </CardDescription>
-      </CardHeader>
-      <form onSubmit={handleSubmit}>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-accent/10 p-4">
+      <Card className="w-full max-w-md bg-gradient-card border-border/50">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl text-center">Welcome back</CardTitle>
+          <CardDescription className="text-center">
+            Enter your credentials to access your account
+          </CardDescription>
+        </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="admin@taskflow.com"
+                placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="pl-10"
                 required
+                disabled={login.isPending}
               />
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="password"
-                type="password"
-                placeholder="password123"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="pl-10"
-                required
-              />
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={login.isPending}
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={login.isPending}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                  )}
+                </Button>
+              </div>
             </div>
+            
+            {login.error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{login.error.message}</AlertDescription>
+              </Alert>
+            )}
+            
+            <Button
+              type="submit"
+              className="w-full bg-gradient-primary hover:opacity-90"
+              disabled={login.isPending || !email || !password}
+            >
+              {login.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                'Sign in'
+              )}
+            </Button>
+          </form>
+          
+          <div className="text-center text-sm">
+            <span className="text-muted-foreground">Don't have an account? </span>
+            <Button
+              variant="link"
+              className="p-0 h-auto font-semibold"
+              onClick={() => navigate('/signup')}
+              disabled={login.isPending}
+            >
+              Sign up
+            </Button>
           </div>
         </CardContent>
-        <CardFooter className="flex flex-col space-y-2">
-          <Button
-            type="submit"
-            className="w-full bg-gradient-primary hover:opacity-90 transition-opacity"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Signing in...
-              </>
-            ) : (
-              'Sign In'
-            )}
-          </Button>
-          <p className="text-sm text-muted-foreground text-center">
-            Demo credentials: admin@taskflow.com / password123
-          </p>
-        </CardFooter>
-      </form>
-    </Card>
+      </Card>
+    </div>
   );
 }

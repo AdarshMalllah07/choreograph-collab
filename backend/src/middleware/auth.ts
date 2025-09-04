@@ -1,6 +1,46 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
+// Utility function to parse time strings like "15m", "15h", "15d"
+function parseTimeString(timeString: string): string {
+  const match = timeString.match(/^(\d+)([mhd])$/);
+  if (!match) {
+    throw new Error(`Invalid time format: ${timeString}. Expected format: 15m, 15h, 15d`);
+  }
+  
+  const [, value, unit] = match;
+  if (!value || !unit) {
+    throw new Error(`Invalid time format: ${timeString}. Expected format: 15m, 15h, 15d`);
+  }
+  
+  const numValue = parseInt(value, 10);
+  
+  switch (unit) {
+    case 'm': // minutes
+      return `${numValue}m`;
+    case 'h': // hours
+      return `${numValue}h`;
+    case 'd': // days
+      return `${numValue}d`;
+    default:
+      throw new Error(`Invalid time unit: ${unit}. Expected: m, h, d`);
+  }
+}
+
+// Get token expiry times from environment variables
+function getTokenExpiry(type: 'access' | 'refresh'): string {
+  const envVar = type === 'access' ? 'ACCESS_TOKEN_EXPIRY' : 'REFRESH_TOKEN_EXPIRY';
+  const defaultValue = type === 'access' ? '15m' : '7d';
+  const timeString = process.env[envVar] || defaultValue;
+  
+  try {
+    return parseTimeString(timeString);
+  } catch (error) {
+    console.warn(`Invalid ${envVar} value: ${timeString}. Using default: ${defaultValue}`);
+    return defaultValue;
+  }
+}
+
 export interface AuthPayload {
 	userId: string;
 }
@@ -17,13 +57,15 @@ declare global {
 export function signAccessToken(payload: AuthPayload): string {
 	const secret = process.env.JWT_SECRET;
 	if (!secret) throw new Error('JWT_SECRET not set');
-	return jwt.sign(payload, secret, { expiresIn: '15m' });
+	const expiresIn = getTokenExpiry('access');
+	return jwt.sign(payload, secret, { expiresIn } as jwt.SignOptions);
 }
 
 export function signRefreshToken(payload: AuthPayload): string {
 	const secret = process.env.JWT_SECRET;
 	if (!secret) throw new Error('JWT_SECRET not set');
-	return jwt.sign(payload, secret, { expiresIn: '7d' });
+	const expiresIn = getTokenExpiry('refresh');
+	return jwt.sign(payload, secret, { expiresIn } as jwt.SignOptions);
 }
 
 export function verifyRefreshToken(token: string): AuthPayload | null {

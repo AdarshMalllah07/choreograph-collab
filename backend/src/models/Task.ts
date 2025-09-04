@@ -9,6 +9,7 @@ export interface ITask extends Document {
 	status: TaskStatus;
 	assignee?: Types.ObjectId;
 	order: number;
+	deadline?: Date;
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -20,7 +21,8 @@ const TaskSchema = new Schema<ITask>(
 		description: { type: String, trim: true },
 		status: { type: String, default: 'todo', index: true },
 		assignee: { type: Schema.Types.ObjectId, ref: 'User' },
-		order: { type: Number, default: 0 }
+		order: { type: Number, default: 0 },
+		deadline: { type: Date, default: null }
 	},
 	{ timestamps: true }
 );
