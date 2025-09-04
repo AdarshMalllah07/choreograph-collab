@@ -58,10 +58,6 @@ A modern, collaborative project management application built with React, Node.js
 ![Project Selector](./screenshots/08-project-selector.png)
 *Switch between different projects*
 
-### 📱 Mobile View
-![Mobile Dashboard](./screenshots/09-mobile-dashboard.png)
-*Responsive design optimized for mobile devices*
-
 ## 🚀 Getting Started
 
 ### Prerequisites
