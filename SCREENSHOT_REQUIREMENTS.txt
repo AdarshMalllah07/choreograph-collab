@@ -1,0 +1,82 @@
+📁 FOLDER STRUCTURE AND IMAGE NAMES REQUIRED
+===============================================
+
+📂 Folder: /screenshots/
+   ├── 01-landing-page.png
+   ├── 02-login-page.png
+   ├── 03-signup-page.png
+   ├── 04-dashboard.png
+   ├── 05-kanban-board.png
+   ├── 06-task-modal.png
+   ├── 07-column-modal.png
+   ├── 08-project-selector.png
+   └── 09-mobile-dashboard.png
+
+📋 SCREENSHOT CHECKLIST
+=======================
+
+1. 01-landing-page.png
+   - Navigate to: http://localhost:5173/
+   - Show: Welcome page with app branding
+   - Size: 1920x1080 or 1280x720
+
+2. 02-login-page.png
+   - Navigate to: http://localhost:5173/login
+   - Show: Login form with password visibility toggle
+   - Size: 1920x1080 or 1280x720
+
+3. 03-signup-page.png
+   - Navigate to: http://localhost:5173/signup
+   - Show: Registration form with validation
+   - Size: 1920x1080 or 1280x720
+
+4. 04-dashboard.png
+   - Navigate to: http://localhost:5173/dashboard (after login)
+   - Show: Main dashboard with project selector
+   - Size: 1920x1080 or 1280x720
+
+5. 05-kanban-board.png
+   - Navigate to: Dashboard → Select a project
+   - Show: Kanban board with tasks in columns
+   - Size: 1920x1080 or 1280x720
+
+6. 06-task-modal.png
+   - Navigate to: Dashboard → Click "New Task" button
+   - Show: Task creation modal with all fields
+   - Size: 800x600 or 1280x720
+
+7. 07-column-modal.png
+   - Navigate to: Dashboard → Click "New Column" button
+   - Show: Column creation modal
+   - Size: 600x400 or 1280x720
+
+8. 08-project-selector.png
+   - Navigate to: Dashboard → Click project selector dropdown
+   - Show: Project dropdown with multiple projects
+   - Size: 400x300 or 1280x720
+
+9. 09-mobile-dashboard.png
+   - Navigate to: Dashboard
+   - Show: Mobile view (use browser dev tools)
+   - Size: 375x667 (iPhone SE) or 414x896 (iPhone 11)
+
+📝 QUICK SETUP INSTRUCTIONS
+===========================
+
+1. Start the app:
+   cd backend && npm run dev
+   cd frontend && npm run dev
+
+2. Open: http://localhost:5173
+
+3. Create test account:
+   - Email: test@example.com
+   - Password: password123
+
+4. Create sample project and tasks for better screenshots
+
+5. Take screenshots in order (01-09)
+
+6. Save all images in /screenshots/ folder with exact names above
+
+✅ DONE! Your README will automatically display the screenshots.
