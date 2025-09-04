@@ -16,9 +16,9 @@ const Index = () => {
     
     // Check for authentication errors
     if (error && (error.message?.includes('401') || error.message?.includes('Unauthorized'))) {
-      console.log('Index - Auth error detected, redirecting to auth');
+      console.log('Index - Auth error detected, redirecting to login');
       setHasRedirected(true);
-      navigate('/auth', { replace: true });
+      navigate('/login', { replace: true });
       return;
     }
     
@@ -28,9 +28,9 @@ const Index = () => {
       setHasRedirected(true);
       navigate('/dashboard', { replace: true });
     } else {
-      console.log('Index - User not authenticated, redirecting to auth');
+      console.log('Index - User not authenticated, redirecting to login');
       setHasRedirected(true);
-      navigate('/auth', { replace: true });
+      navigate('/login', { replace: true });
     }
   }, [userData, isLoading, error, navigate, hasRedirected]);
 

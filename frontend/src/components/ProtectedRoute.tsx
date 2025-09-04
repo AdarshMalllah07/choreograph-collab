@@ -40,16 +40,16 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  // If there's an authentication error, redirect to auth
+  // If there's an authentication error, redirect to login
   if (error && (error.message?.includes('401') || error.message?.includes('Unauthorized') || error.message?.includes('No token found'))) {
-    console.log('ProtectedRoute - Redirecting to auth due to auth error');
-    return <Navigate to="/auth" replace />;
+    console.log('ProtectedRoute - Redirecting to login due to auth error');
+    return <Navigate to="/login" replace />;
   }
 
-  // If no token, redirect to auth
+  // If no token, redirect to login
   if (!localStorage.getItem('token')) {
-    console.log('ProtectedRoute - No token found, redirecting to auth');
-    return <Navigate to="/auth" replace />;
+    console.log('ProtectedRoute - No token found, redirecting to login');
+    return <Navigate to="/login" replace />;
   }
 
   // If we have a token but no user data and no error, still loading
@@ -70,7 +70,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     localStorage.removeItem('token');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('user');
-    return <Navigate to="/auth" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   // User is authenticated, render children

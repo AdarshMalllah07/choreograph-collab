@@ -17,13 +17,13 @@ export function Header() {
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
-      navigate('/auth');
+      navigate('/login');
     } catch (error) {
       // Even if logout fails, clear local storage and redirect
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
       localStorage.removeItem('user');
-      navigate('/auth');
+      navigate('/login');
     }
   };
 
@@ -50,7 +50,11 @@ export function Header() {
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center space-x-2">
-          <div className="text-2xl">🎯</div>
+          <img 
+            src="/appIcons/favicon-32x32.png" 
+            alt="TaskFlow" 
+            className="h-8 w-8"
+          />
           <h1 className="text-xl font-bold">Choreograph Collab</h1>
         </div>
 
