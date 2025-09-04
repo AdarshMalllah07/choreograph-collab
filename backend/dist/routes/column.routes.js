@@ -109,7 +109,7 @@ router.patch('/:projectId/columns/reorder', async (req, res) => {
             return res.status(400).json({ message: 'Invalid input', issues: body.error.issues });
         // Get all existing columns for this project
         const existingColumns = await Column.find({ project: projectId });
-        const existingColumnIds = existingColumns.map(col => col._id.toString());
+        const existingColumnIds = existingColumns.map(col => col._id?.toString() || '');
         // Validate that all provided column IDs exist in this project
         const providedIds = body.data.columns.map(col => col.id);
         const invalidIds = providedIds.filter(id => !existingColumnIds.includes(id));

@@ -5,6 +5,35 @@ import { User } from '../models/User.js';
 import { signAccessToken, signRefreshToken, verifyRefreshToken, requireAuth } from '../middleware/auth.js';
 import { RefreshToken } from '../models/RefreshToken.js';
 
+// Utility function to parse refresh token expiry time strings
+function parseRefreshTokenExpiry(timeString: string): number {
+  const match = timeString.match(/^(\d+)([mhd])$/);
+  if (!match) {
+    console.warn(`Invalid refresh token expiry format: ${timeString}. Using default: 7d`);
+    return 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+  }
+  
+  const [, value, unit] = match;
+  if (!value || !unit) {
+    console.warn(`Invalid refresh token expiry format: ${timeString}. Using default: 7d`);
+    return 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+  }
+  
+  const numValue = parseInt(value, 10);
+  
+  switch (unit) {
+    case 'm': // minutes
+      return numValue * 60 * 1000;
+    case 'h': // hours
+      return numValue * 60 * 60 * 1000;
+    case 'd': // days
+      return numValue * 24 * 60 * 60 * 1000;
+    default:
+      console.warn(`Invalid refresh token expiry unit: ${unit}. Using default: 7d`);
+      return 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+  }
+}
+
 const router = Router();
 
 const signupSchema = z.object({
@@ -27,7 +56,12 @@ router.post('/signup', async (req, res) => {
 	const user = await User.create({ name, email, passwordHash });
 	const accessToken = signAccessToken({ userId: user.id });
 	const refreshToken = signRefreshToken({ userId: user.id });
-	const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+	
+	// Calculate refresh token expiry time based on environment variable
+	const refreshExpiryString = process.env.REFRESH_TOKEN_EXPIRY || '7d';
+	const refreshExpiryMs = parseRefreshTokenExpiry(refreshExpiryString);
+	const expiresAt = new Date(Date.now() + refreshExpiryMs);
+	
 	await RefreshToken.create({ user: user.id, token: refreshToken, expiresAt });
 	return res.status(201).json({ accessToken, refreshToken, user: { id: user.id, name: user.name, email: user.email } });
 });
@@ -53,7 +87,12 @@ router.post('/login', async (req, res) => {
 	}
 	const accessToken = signAccessToken({ userId: user.id });
 	const refreshToken = signRefreshToken({ userId: user.id });
-	const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+	
+	// Calculate refresh token expiry time based on environment variable
+	const refreshExpiryString = process.env.REFRESH_TOKEN_EXPIRY || '7d';
+	const refreshExpiryMs = parseRefreshTokenExpiry(refreshExpiryString);
+	const expiresAt = new Date(Date.now() + refreshExpiryMs);
+	
 	await RefreshToken.create({ user: user.id, token: refreshToken, expiresAt });
 	return res.json({ accessToken, refreshToken, user: { id: user.id, name: user.name, email: user.email } });
 });
