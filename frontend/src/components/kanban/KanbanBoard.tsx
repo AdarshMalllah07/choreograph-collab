@@ -5,6 +5,9 @@ import {
   DragOverlay,
   DragStartEvent,
   closestCorners,
+  closestCenter,
+  pointerWithin,
+  rectIntersection,
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -33,6 +36,34 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   const [activeColumn, setActiveColumn] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Custom collision detection that prioritizes columns over tasks
+  const customCollisionDetection = (args: any) => {
+    const { active, droppableContainers } = args;
+    
+    // If we're dragging a task, prioritize column drop zones
+    if (active && projectTasks.some(task => task.id === active.id)) {
+      // First, try to find collisions with columns
+      const columnCollisions = closestCorners({
+        ...args,
+        droppableContainers: droppableContainers.filter((container: any) => 
+          mappedColumns.some(col => col.id === container.id)
+        )
+      });
+
+      if (columnCollisions.length > 0) {
+        return columnCollisions;
+      }
+    }
+
+    // If we're dragging a column, use default collision detection
+    if (active && mappedColumns.some(col => col.id === active.id)) {
+      return closestCorners(args);
+    }
+
+    // For tasks, use default collision detection
+    return closestCorners(args);
+  };
 
   // Helper function to get column color based on name
   const getColumnColor = (columnName: string): string => {
@@ -311,16 +342,24 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   }
 
   return (
-    <DndContext
-      collisionDetection={closestCorners}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-    >
-      <SortableContext
-        items={mappedColumns.map(col => col.id)}
-        strategy={horizontalListSortingStrategy}
+    <div className="h-full flex flex-col">
+      <DndContext
+        collisionDetection={customCollisionDetection}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragOver={(event) => {
+          // Ensure we can always drop on columns
+          const { active, over } = event;
+          if (active && over) {
+            console.log('onDragOver - Active:', active.id, 'Over:', over.id);
+          }
+        }}
       >
-        <div className="flex overflow-x-auto gap-6 p-6 pb-4 pr-8 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/50">
+        <SortableContext
+          items={mappedColumns.map(col => col.id)}
+          strategy={horizontalListSortingStrategy}
+        >
+          <div className="flex-1 flex overflow-x-auto gap-6 p-6 pb-4 pr-8 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/50">
           {(() => {
             // Track which tasks have been assigned to columns to prevent duplicates
             const assignedTaskIds = new Set<string>();
@@ -363,37 +402,39 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
             }
 
             return columnData.map(({ column, tasks }) => (
-              <SortableContext
-                key={column.id}
-                items={tasks.map(t => t.id)}
-                strategy={verticalListSortingStrategy}
-              >
-                <SortableColumn
-                  id={column.id}
-                  title={column.title}
-                  color={column.color}
-                  tasks={tasks}
-                  updatingTaskId={updateTask.isPending ? activeTask?.id : null}
-                />
-              </SortableContext>
+              <div key={column.id} className="relative">
+                <SortableContext
+                  items={tasks.map(t => t.id)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <SortableColumn
+                    id={column.id}
+                    title={column.title}
+                    color={column.color}
+                    tasks={tasks}
+                    updatingTaskId={updateTask.isPending ? activeTask?.id : null}
+                  />
+                </SortableContext>
+              </div>
             ));
           })()}
-        </div>
-      </SortableContext>
-      
-      <DragOverlay>
-        {activeTask ? <TaskCard task={activeTask} isDragging /> : null}
-        {activeColumn ? (
-          <div className="opacity-50 rotate-3 scale-105">
-            <SortableColumn
-              id={activeColumn}
-              title={mappedColumns.find(col => col.id === activeColumn)?.title || ''}
-              color={mappedColumns.find(col => col.id === activeColumn)?.color || 'bg-gray-500'}
-              tasks={[]}
-            />
           </div>
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+        </SortableContext>
+        
+        <DragOverlay>
+          {activeTask ? <TaskCard task={activeTask} isDragging /> : null}
+          {activeColumn ? (
+            <div className="opacity-50 rotate-3 scale-105">
+              <SortableColumn
+                id={activeColumn}
+                title={mappedColumns.find(col => col.id === activeColumn)?.title || ''}
+                color={mappedColumns.find(col => col.id === activeColumn)?.color || 'bg-gray-500'}
+                tasks={[]}
+              />
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+    </div>
   );
 }

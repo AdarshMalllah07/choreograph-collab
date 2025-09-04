@@ -14,6 +14,10 @@ interface KanbanColumnProps {
 export function KanbanColumn({ id, title, color, tasks, updatingTaskId }: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id,
+    data: {
+      type: 'column',
+      accepts: ['task']
+    }
   });
 
   return (
@@ -21,7 +25,7 @@ export function KanbanColumn({ id, title, color, tasks, updatingTaskId }: Kanban
       ref={setNodeRef}
       className={cn(
         "flex flex-col bg-card rounded-lg border border-border/50 transition-all min-w-[320px] max-w-[320px] flex-shrink-0",
-        isOver && "ring-2 ring-primary ring-offset-2"
+        isOver && "ring-2 ring-primary ring-offset-2 bg-primary/5 border-primary/50"
       )}
     >
       <div className="p-4 border-b border-border/50">
@@ -49,6 +53,8 @@ export function KanbanColumn({ id, title, color, tasks, updatingTaskId }: Kanban
             No tasks
           </div>
         )}
+        {/* Ensure there's always a drop zone area */}
+        <div className="min-h-[20px] w-full" />
       </div>
     </div>
   );
