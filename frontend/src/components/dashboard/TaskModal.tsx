@@ -34,10 +34,21 @@ export function TaskModal({ open, onOpenChange, projectId }: TaskModalProps) {
       return;
     }
 
+    // Validate required fields
+    if (!title.trim()) {
+      toast.error('Task title is required');
+      return;
+    }
+
+    if (!priority) {
+      toast.error('Task priority is required');
+      return;
+    }
+
     try {
       await createTask.mutateAsync({
-        title,
-        description,
+        title: title.trim(),
+        description: description.trim(),
         status: 'todo',
         priority,
         assigneeId: user.id,
@@ -64,12 +75,12 @@ export function TaskModal({ open, onOpenChange, projectId }: TaskModalProps) {
           <DialogHeader>
             <DialogTitle>Create New Task</DialogTitle>
             <DialogDescription>
-              Add a new task to the project
+              Add a new task to the project. Title and priority are required fields.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="title">Title</Label>
+              <Label htmlFor="title">Title <span className="text-red-500">*</span></Label>
               <Input
                 id="title"
                 value={title}
@@ -77,6 +88,7 @@ export function TaskModal({ open, onOpenChange, projectId }: TaskModalProps) {
                 placeholder="Task title"
                 required
                 disabled={createTask.isPending}
+                className={!title.trim() ? 'border-red-300 focus:border-red-500' : ''}
               />
             </div>
             <div className="grid gap-2">
@@ -92,10 +104,13 @@ export function TaskModal({ open, onOpenChange, projectId }: TaskModalProps) {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label htmlFor="priority">Priority</Label>
+                <Label htmlFor="priority">Priority <span className="text-red-500">*</span></Label>
                 <Select value={priority} onValueChange={(value: any) => setPriority(value)}>
-                  <SelectTrigger disabled={createTask.isPending}>
-                    <SelectValue />
+                  <SelectTrigger 
+                    disabled={createTask.isPending}
+                    className={!priority ? 'border-red-300 focus:border-red-500' : ''}
+                  >
+                    <SelectValue placeholder="Select priority" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="low">Low</SelectItem>
@@ -120,7 +135,11 @@ export function TaskModal({ open, onOpenChange, projectId }: TaskModalProps) {
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={createTask.isPending}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-gradient-primary hover:opacity-90" disabled={createTask.isPending}>
+            <Button 
+              type="submit" 
+              className="bg-gradient-primary hover:opacity-90" 
+              disabled={createTask.isPending || !title.trim() || !priority}
+            >
               {createTask.isPending ? 'Creating...' : 'Create Task'}
             </Button>
           </DialogFooter>

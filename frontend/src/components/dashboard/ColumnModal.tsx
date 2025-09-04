@@ -15,10 +15,10 @@ interface ColumnModalProps {
 
 export function ColumnModal({ open, onOpenChange, projectId }: ColumnModalProps) {
   const [newColumnName, setNewColumnName] = useState('');
-  const [newColumnOrder, setNewColumnOrder] = useState<number>(0);
+  const [nameError, setNameError] = useState('');
   
   const { toast } = useToast();
-  const { createColumn } = useColumns(projectId);
+  const { createColumn, columns } = useColumns(projectId);
 
   const handleCreateColumn = async () => {
     if (!newColumnName.trim()) {
@@ -30,10 +30,23 @@ export function ColumnModal({ open, onOpenChange, projectId }: ColumnModalProps)
       return;
     }
 
+    // Check for duplicate names on the client side
+    const existingColumns = columns.data?.data || [];
+    const isDuplicate = existingColumns.some(
+      (col: any) => col.name.toLowerCase().trim() === newColumnName.toLowerCase().trim()
+    );
+
+    if (isDuplicate) {
+      setNameError(`A column with the name "${newColumnName}" already exists in this project.`);
+      return;
+    }
+
+    // Clear any previous errors
+    setNameError('');
+
     try {
       await createColumn.mutateAsync({
         name: newColumnName.trim(),
-        order: newColumnOrder,
       });
 
       toast({
@@ -43,21 +56,44 @@ export function ColumnModal({ open, onOpenChange, projectId }: ColumnModalProps)
       
       onOpenChange(false);
       setNewColumnName('');
-      setNewColumnOrder(0);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create column:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create column. Please try again.",
-        variant: "destructive",
-      });
+      
+      // Handle specific error types
+      if (error?.response?.data?.error === 'DUPLICATE_NAME') {
+        toast({
+          title: "Column Name Already Exists",
+          description: error.response.data.message || `A column with the name "${newColumnName}" already exists in this project.`,
+          variant: "destructive",
+        });
+      } else if (error?.response?.data?.error === 'ORDER_CONFLICT') {
+        toast({
+          title: "Order Conflict",
+          description: error.response.data.message || "The specified order is already taken.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error?.response?.data?.message || "Failed to create column. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
   const handleClose = () => {
     onOpenChange(false);
     setNewColumnName('');
-    setNewColumnOrder(0);
+    setNameError('');
+  };
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewColumnName(e.target.value);
+    // Clear error when user starts typing
+    if (nameError) {
+      setNameError('');
+    }
   };
 
   return (
@@ -76,29 +112,18 @@ export function ColumnModal({ open, onOpenChange, projectId }: ColumnModalProps)
               id="columnName"
               placeholder="e.g., In Progress, Review, Testing"
               value={newColumnName}
-              onChange={(e) => setNewColumnName(e.target.value)}
+              onChange={handleNameChange}
               disabled={createColumn.isPending}
+              className={nameError ? 'border-red-300 focus:border-red-500' : ''}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && newColumnName.trim()) {
+                if (e.key === 'Enter' && newColumnName.trim() && !nameError) {
                   handleCreateColumn();
                 }
               }}
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="columnOrder">Display Order (Optional)</Label>
-            <Input
-              id="columnOrder"
-              type="number"
-              placeholder="0"
-              value={newColumnOrder}
-              onChange={(e) => setNewColumnOrder(parseInt(e.target.value) || 0)}
-              disabled={createColumn.isPending}
-              min="0"
-            />
-            <p className="text-xs text-muted-foreground">
-              Lower numbers appear first. Leave as 0 to add at the end.
-            </p>
+            {nameError && (
+              <p className="text-sm text-red-600">{nameError}</p>
+            )}
           </div>
           <div className="flex justify-end space-x-2">
             <Button
@@ -110,7 +135,7 @@ export function ColumnModal({ open, onOpenChange, projectId }: ColumnModalProps)
             </Button>
             <Button
               onClick={handleCreateColumn}
-              disabled={createColumn.isPending || !newColumnName.trim()}
+              disabled={createColumn.isPending || !newColumnName.trim() || !!nameError}
             >
               {createColumn.isPending ? (
                 <>

@@ -111,7 +111,7 @@ router.get('/:projectId/tasks/:taskId', async (req, res) => {
 const createSchema = z.object({
 	title: z.string().min(1).max(200),
 	description: z.string().max(1000).optional(),
-	status: z.enum(['todo', 'in-progress', 'done']).optional(),
+	status: z.enum(['todo', 'in-progress', 'review', 'done']).optional(),
 	priority: z.enum(['low', 'medium', 'high']).optional(),
 	assigneeId: z.string().length(24).optional(),
 	order: z.number().int().min(0).optional(),
@@ -192,7 +192,7 @@ router.post('/:projectId/tasks', async (req, res) => {
 const updateSchema = z.object({
 	title: z.string().min(1).max(200).optional(),
 	description: z.string().max(1000).optional(),
-	status: z.enum(['todo', 'in-progress', 'done']).optional(),
+	status: z.enum(['todo', 'in-progress', 'review', 'done']).optional(),
 	priority: z.enum(['low', 'medium', 'high']).optional(),
 	assigneeId: z.string().length(24).optional(),
 	order: z.number().int().min(0).optional(),
@@ -247,9 +247,12 @@ router.patch('/:projectId/tasks/:taskId', async (req, res) => {
 			}
 		}
 		
-		const updateData = { ...parse.data };
+		const updateData: any = { ...parse.data };
 		if (deadline !== undefined) {
 			updateData.deadline = deadline;
+		} else if (parse.data.deadline === null || parse.data.deadline === '') {
+			// Allow clearing the deadline by setting it to null
+			updateData.deadline = null;
 		}
 		
 		const updated = await Task.findOneAndUpdate(

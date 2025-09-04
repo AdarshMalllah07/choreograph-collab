@@ -33,6 +33,20 @@ router.post('/:projectId/columns', async (req, res) => {
 		const body = createSchema.safeParse(req.body);
 		if (!body.success) return res.status(400).json({ message: 'Invalid input', issues: body.error.issues });
 		
+		// Check if column name already exists in this project
+		const existingColumn = await Column.findOne({ 
+			project: projectId, 
+			name: { $regex: new RegExp(`^${body.data.name.trim()}$`, 'i') } // Case-insensitive exact match
+		});
+		
+		if (existingColumn) {
+			return res.status(409).json({
+				message: `A column with the name "${body.data.name}" already exists in this project. Please choose a different name.`,
+				conflictingName: body.data.name,
+				error: 'DUPLICATE_NAME'
+			});
+		}
+		
 		let order: number;
 		
 		if (body.data.order !== undefined) {
@@ -92,6 +106,23 @@ router.patch('/:projectId/columns/:columnId', async (req, res) => {
 		
 		const body = updateSchema.safeParse(req.body);
 		if (!body.success) return res.status(400).json({ message: 'Invalid input', issues: body.error.issues });
+		
+		// If updating name, check for conflicts
+		if (body.data.name !== undefined) {
+			const existingColumn = await Column.findOne({ 
+				project: p.data.projectId, 
+				name: { $regex: new RegExp(`^${body.data.name.trim()}$`, 'i') }, // Case-insensitive exact match
+				_id: { $ne: p.data.columnId } // Exclude current column
+			});
+			
+			if (existingColumn) {
+				return res.status(409).json({
+					message: `A column with the name "${body.data.name}" already exists in this project. Please choose a different name.`,
+					conflictingName: body.data.name,
+					error: 'DUPLICATE_NAME'
+				});
+			}
+		}
 		
 		// If updating order, check for conflicts
 		if (body.data.order !== undefined) {

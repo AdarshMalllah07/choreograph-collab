@@ -52,15 +52,31 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
 
   // Helper function to get the status value for a column title
   const getColumnStatus = (columnTitle: string): string => {
-    const name = columnTitle.toLowerCase();
-    if (name.includes('todo') || name.includes('to do') || name.includes('backlog')) {
-      return 'todo';
-    } else if (name.includes('progress') || name.includes('doing') || name.includes('in progress') || name.includes('review') || name.includes('testing')) {
+    const name = columnTitle.toLowerCase().trim();
+    
+    // Exact matching with priority order to avoid conflicts
+    // Check for exact matches first
+    if (name === 'review' || name === 'testing' || name === 'qa') {
+      return 'review';
+    } else if (name === 'in progress' || name === 'progress' || name === 'doing' || name === 'working') {
       return 'in-progress';
-    } else if (name.includes('done') || name.includes('complete') || name.includes('finished')) {
+    } else if (name === 'done' || name === 'completed' || name === 'finished' || name === 'complete') {
       return 'done';
+    } else if (name === 'todo' || name === 'to do' || name === 'backlog') {
+      return 'todo';
     } else {
-      return 'todo'; // Default status
+      // For partial matches, be more specific to avoid conflicts
+      if (name.includes('review') && !name.includes('progress')) {
+        return 'review';
+      } else if (name.includes('progress') && !name.includes('review')) {
+        return 'in-progress';
+      } else if (name.includes('done') || name.includes('complete')) {
+        return 'done';
+      } else if (name.includes('todo') || name.includes('backlog')) {
+        return 'todo';
+      } else {
+        return 'todo'; // Default status
+      }
     }
   };
 
@@ -95,6 +111,17 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   if (projectTasks.length > 0) {
     console.log('KanbanBoard - Sample task structure:', projectTasks[0]);
     console.log('KanbanBoard - All task statuses:', projectTasks.map(t => ({ id: t.id, status: t.status, title: t.title })));
+  }
+
+  // Check for tasks that don't match any column status
+  const allColumnStatuses = mappedColumns.map(col => getColumnStatus(col.title));
+  const unmatchedTasks = projectTasks.filter(task => !allColumnStatuses.includes(task.status));
+  if (unmatchedTasks.length > 0) {
+    console.warn('KanbanBoard - Tasks with unmatched statuses:', {
+      unmatchedTasks: unmatchedTasks.map(t => ({ id: t.id, status: t.status, title: t.title })),
+      availableStatuses: allColumnStatuses,
+      columnMappings: mappedColumns.map(col => ({ title: col.title, status: getColumnStatus(col.title) }))
+    });
   }
 
   // If no columns, show empty state
@@ -220,62 +247,63 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       onDragEnd={handleDragEnd}
     >
       <div className="flex overflow-x-auto gap-6 p-6 pb-4 pr-8 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/50">
-        {mappedColumns.map((column) => {
-          // Get the status value for this column
-          const columnStatus = getColumnStatus(column.title);
-          
-          // Filter tasks by the mapped status value
-          let columnTasks = projectTasks.filter(
-            (task) => task.status === columnStatus
-          );
+        {(() => {
+          // Track which tasks have been assigned to columns to prevent duplicates
+          const assignedTaskIds = new Set<string>();
+          const columnData = mappedColumns.map((column) => {
+            // Get the status value for this column
+            const columnStatus = getColumnStatus(column.title);
+            
+            // Filter tasks by EXACT status match only, excluding already assigned tasks
+            const columnTasks = projectTasks.filter(
+              (task) => task.status === columnStatus && !assignedTaskIds.has(task.id)
+            );
 
-          // If no exact match, try matching by column name similarity
-          if (columnTasks.length === 0) {
-            const columnNameLower = column.title.toLowerCase();
-            columnTasks = projectTasks.filter((task) => {
-              const taskStatus = String(task.status || '').toLowerCase();
-              
-              // Try different matching strategies
-              if (taskStatus === columnNameLower) return true;
-              if (columnNameLower.includes(taskStatus)) return true;
-              if (taskStatus.includes(columnNameLower)) return true;
-              
-              // Handle common variations
-              if (columnNameLower === 'to do' && (taskStatus === 'todo' || taskStatus === 'to-do')) return true;
-              if (columnNameLower === 'in progress' && (taskStatus === 'in-progress' || taskStatus === 'inprogress' || taskStatus === 'doing')) return true;
-              if (columnNameLower === 'done' && (taskStatus === 'completed' || taskStatus === 'finished' || taskStatus === 'complete')) return true;
-              
-              return false;
+            // Mark these tasks as assigned
+            columnTasks.forEach(task => assignedTaskIds.add(task.id));
+
+            // Debug logging for each column
+            console.log(`Column ${column.id} (${column.title}):`, {
+              columnId: column.id,
+              columnTitle: column.title,
+              columnStatus: columnStatus,
+              totalTasks: projectTasks.length,
+              matchingTasks: columnTasks.length,
+              allTaskStatuses: projectTasks.map(t => ({ id: t.id, status: t.status, title: t.title })),
+              matchedTasks: columnTasks.map(t => ({ id: t.id, status: t.status, title: t.title }))
+            });
+
+            return {
+              column,
+              tasks: columnTasks
+            };
+          });
+
+          // Check for any unassigned tasks
+          const unassignedTasks = projectTasks.filter(task => !assignedTaskIds.has(task.id));
+          if (unassignedTasks.length > 0) {
+            console.warn('KanbanBoard - Unassigned tasks found:', {
+              unassignedTasks: unassignedTasks.map(t => ({ id: t.id, status: t.status, title: t.title })),
+              allColumns: mappedColumns.map(col => ({ title: col.title, status: getColumnStatus(col.title) }))
             });
           }
 
-          // Debug logging for each column
-          console.log(`Column ${column.id} (${column.title}):`, {
-            columnId: column.id,
-            columnTitle: column.title,
-            columnStatus: columnStatus,
-            totalTasks: projectTasks.length,
-            matchingTasks: columnTasks.length,
-            allTaskStatuses: projectTasks.map(t => ({ id: t.id, status: t.status, title: t.title })),
-            matchedTasks: columnTasks.map(t => ({ id: t.id, status: t.status, title: t.title }))
-          });
-
-          return (
+          return columnData.map(({ column, tasks }) => (
             <SortableContext
               key={column.id}
-              items={columnTasks.map(t => t.id)}
+              items={tasks.map(t => t.id)}
               strategy={verticalListSortingStrategy}
             >
               <KanbanColumn
                 id={column.id}
                 title={column.title}
                 color={column.color}
-                tasks={columnTasks}
+                tasks={tasks}
                 updatingTaskId={updateTask.isPending ? activeTask?.id : null}
               />
             </SortableContext>
-          );
-        })}
+          ));
+        })()}
       </div>
       
       <DragOverlay>
