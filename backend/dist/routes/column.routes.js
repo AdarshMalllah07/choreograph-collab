@@ -6,7 +6,7 @@ import { Project } from '../models/Project.js';
 import { getNextColumnOrder, isOrderAvailable, reorderColumns } from '../utils/columnUtils.js';
 const router = Router({ mergeParams: true });
 router.use(requireAuth);
-const paramsSchema = z.object({ projectId: z.string().length(24) });
+const paramsSchema = z.object({ projectId: z.string().min(1) });
 router.get('/:projectId/columns', async (req, res) => {
     const parsed = paramsSchema.safeParse(req.params);
     if (!parsed.success)
@@ -88,10 +88,63 @@ router.post('/:projectId/columns', async (req, res) => {
         });
     }
 });
+// Add a new endpoint to reorder columns
+const reorderSchema = z.object({
+    columns: z.array(z.object({
+        id: z.string().min(1),
+        order: z.number().int().min(0)
+    })).min(1)
+});
+router.patch('/:projectId/columns/reorder', async (req, res) => {
+    try {
+        const parsed = paramsSchema.safeParse(req.params);
+        if (!parsed.success)
+            return res.status(400).json({ message: 'Invalid projectId' });
+        const { projectId } = parsed.data;
+        const project = await Project.findById(projectId);
+        if (!project)
+            return res.status(404).json({ message: 'Project not found' });
+        const body = reorderSchema.safeParse(req.body);
+        if (!body.success)
+            return res.status(400).json({ message: 'Invalid input', issues: body.error.issues });
+        // Get all existing columns for this project
+        const existingColumns = await Column.find({ project: projectId });
+        const existingColumnIds = existingColumns.map(col => col._id.toString());
+        // Validate that all provided column IDs exist in this project
+        const providedIds = body.data.columns.map(col => col.id);
+        const invalidIds = providedIds.filter(id => !existingColumnIds.includes(id));
+        if (invalidIds.length > 0) {
+            return res.status(400).json({
+                message: 'Invalid column IDs provided',
+                invalidIds
+            });
+        }
+        // Use a two-phase approach to avoid unique constraint conflicts
+        // Phase 1: Set all columns to temporary negative orders
+        const tempOrderPromises = existingColumns.map(col => Column.findByIdAndUpdate(col._id, { order: -(col.order + 1000) }));
+        await Promise.all(tempOrderPromises);
+        // Phase 2: Set the new orders
+        const newOrderPromises = body.data.columns.map(({ id, order }) => Column.findByIdAndUpdate(id, { order }));
+        await Promise.all(newOrderPromises);
+        // Return updated columns
+        const columns = await Column.find({ project: projectId }).sort({ order: 1 });
+        return res.json({
+            message: 'Columns reordered successfully',
+            columns: columns.map((c) => ({ id: c.id, name: c.name, order: c.order }))
+        });
+    }
+    catch (error) {
+        console.error('Column reorder error:', error);
+        return res.status(500).json({
+            message: 'Failed to reorder columns. Please try again.',
+            error: 'INTERNAL_ERROR'
+        });
+    }
+});
 const updateSchema = z.object({ name: z.string().min(1).optional(), order: z.number().int().min(0).optional() });
 router.patch('/:projectId/columns/:columnId', async (req, res) => {
     try {
-        const p = z.object({ projectId: z.string().length(24), columnId: z.string().length(24) }).safeParse(req.params);
+        const p = z.object({ projectId: z.string().min(1), columnId: z.string().min(1) }).safeParse(req.params);
         if (!p.success)
             return res.status(400).json({ message: 'Invalid ids' });
         const body = updateSchema.safeParse(req.body);
@@ -170,7 +223,7 @@ router.post('/:projectId/columns/fix-order', async (req, res) => {
 });
 router.delete('/:projectId/columns/:columnId', async (req, res) => {
     try {
-        const p = z.object({ projectId: z.string().length(24), columnId: z.string().length(24) }).safeParse(req.params);
+        const p = z.object({ projectId: z.string().min(1), columnId: z.string().min(1) }).safeParse(req.params);
         if (!p.success)
             return res.status(400).json({ message: 'Invalid ids' });
         const deleted = await Column.findOneAndDelete({ _id: p.data.columnId, project: p.data.projectId });

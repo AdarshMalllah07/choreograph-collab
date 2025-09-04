@@ -74,11 +74,24 @@ export const useColumns = (projectId: string) => {
     },
   })
 
+  const reorderColumns = useMutation({
+    mutationFn: (columns: { id: string; order: number }[]) => {
+      if (!projectId || projectId.trim() === '') {
+        throw new Error('Project ID is required');
+      }
+      return apiService.reorderColumns(projectId, columns);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['columns', projectId] })
+    },
+  })
+
   return {
     columns,
     createColumn,
     updateColumn,
     deleteColumn,
     fixColumnOrder,
+    reorderColumns,
   }
 }

@@ -9,7 +9,7 @@ const router = Router({ mergeParams: true });
 
 router.use(requireAuth);
 
-const idParam = z.object({ projectId: z.string().length(24) });
+const idParam = z.object({ projectId: z.string().min(1) });
 
 // GET all tasks for a project
 router.get('/:projectId/tasks', async (req, res) => {
@@ -58,8 +58,8 @@ router.get('/:projectId/tasks', async (req, res) => {
 router.get('/:projectId/tasks/:taskId', async (req, res) => {
 	try {
 		const paramsSchema = z.object({ 
-			projectId: z.string().length(24), 
-			taskId: z.string().length(24) 
+			projectId: z.string().min(1), 
+			taskId: z.string().min(1) 
 		});
 		const paramsOk = paramsSchema.safeParse(req.params);
 		if (!paramsOk.success) return res.status(400).json({ message: 'Invalid ids' });
@@ -113,7 +113,7 @@ const createSchema = z.object({
 	description: z.string().max(1000).optional(),
 	status: z.enum(['todo', 'in-progress', 'review', 'done']).optional(),
 	priority: z.enum(['low', 'medium', 'high']).optional(),
-	assigneeId: z.string().length(24).optional(),
+	assigneeId: z.string().min(1).optional(),
 	order: z.number().int().min(0).optional(),
 	deadline: z.string().datetime().optional()
 });
@@ -194,7 +194,7 @@ const updateSchema = z.object({
 	description: z.string().max(1000).optional(),
 	status: z.enum(['todo', 'in-progress', 'review', 'done']).optional(),
 	priority: z.enum(['low', 'medium', 'high']).optional(),
-	assigneeId: z.string().length(24).optional(),
+	assigneeId: z.string().min(1).optional(),
 	order: z.number().int().min(0).optional(),
 	deadline: z.string().datetime().optional()
 });
@@ -203,8 +203,8 @@ const updateSchema = z.object({
 router.patch('/:projectId/tasks/:taskId', async (req, res) => {
 	try {
 		const paramsSchema = z.object({ 
-			projectId: z.string().length(24), 
-			taskId: z.string().length(24) 
+			projectId: z.string().min(1), 
+			taskId: z.string().min(1) 
 		});
 		const paramsOk = paramsSchema.safeParse(req.params);
 		if (!paramsOk.success) return res.status(400).json({ message: 'Invalid ids' });
@@ -286,8 +286,8 @@ router.patch('/:projectId/tasks/:taskId', async (req, res) => {
 router.delete('/:projectId/tasks/:taskId', async (req, res) => {
 	try {
 		const paramsSchema = z.object({ 
-			projectId: z.string().length(24), 
-			taskId: z.string().length(24) 
+			projectId: z.string().min(1), 
+			taskId: z.string().min(1) 
 		});
 		const paramsOk = paramsSchema.safeParse(req.params);
 		if (!paramsOk.success) return res.status(400).json({ message: 'Invalid ids' });
@@ -319,8 +319,8 @@ router.delete('/:projectId/tasks/:taskId', async (req, res) => {
 router.post('/:projectId/tasks/:taskId/assign', async (req, res) => {
 	try {
 		const paramsSchema = z.object({ 
-			projectId: z.string().length(24), 
-			taskId: z.string().length(24) 
+			projectId: z.string().min(1), 
+			taskId: z.string().min(1) 
 		});
 		const paramsOk = paramsSchema.safeParse(req.params);
 		if (!paramsOk.success) return res.status(400).json({ message: 'Invalid ids' });
@@ -377,8 +377,8 @@ router.post('/:projectId/tasks/:taskId/assign', async (req, res) => {
 router.delete('/:projectId/tasks/:taskId/assign', async (req, res) => {
 	try {
 		const paramsSchema = z.object({ 
-			projectId: z.string().length(24), 
-			taskId: z.string().length(24) 
+			projectId: z.string().min(1), 
+			taskId: z.string().min(1) 
 		});
 		const paramsOk = paramsSchema.safeParse(req.params);
 		if (!paramsOk.success) return res.status(400).json({ message: 'Invalid ids' });

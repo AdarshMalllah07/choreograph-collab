@@ -9,10 +9,11 @@ import {
 import {
   SortableContext,
   verticalListSortingStrategy,
+  horizontalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { useTasks, useColumns } from '@/hooks';
 import { Task } from '@/types';
-import { KanbanColumn } from './KanbanColumn';
+import { SortableColumn } from './SortableColumn';
 import { TaskCard } from './TaskCard';
 import { Loader2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -26,9 +27,10 @@ interface KanbanBoardProps {
 
 export function KanbanBoard({ projectId }: KanbanBoardProps) {
   const { tasks } = useTasks(projectId);
-  const { columns: columnsQuery } = useColumns(projectId);
+  const { columns: columnsQuery, reorderColumns } = useColumns(projectId);
   const { updateTask } = useTasks(projectId);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
+  const [activeColumn, setActiveColumn] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -141,8 +143,21 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   }
 
   const handleDragStart = (event: DragStartEvent) => {
-    const task = projectTasks.find((t) => t.id === event.active.id);
-    setActiveTask(task || null);
+    const { active } = event;
+    
+    // Check if it's a task being dragged
+    const task = projectTasks.find((t) => t.id === active.id);
+    if (task) {
+      setActiveTask(task);
+      return;
+    }
+    
+    // Check if it's a column being dragged
+    const column = mappedColumns.find((c) => c.id === active.id);
+    if (column) {
+      setActiveColumn(column.id);
+      return;
+    }
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -150,8 +165,63 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     
     if (!over) return;
     
-    const taskId = active.id as string;
-    const newColumnId = over.id as string;
+    const activeId = active.id as string;
+    const overId = over.id as string;
+    
+    // Handle column reordering
+    if (activeColumn && activeId === activeColumn) {
+      const oldIndex = mappedColumns.findIndex(col => col.id === activeId);
+      const newIndex = mappedColumns.findIndex(col => col.id === overId);
+      
+      if (oldIndex !== newIndex) {
+        console.log('handleDragEnd - Column reordered:', {
+          columnId: activeId,
+          oldIndex,
+          newIndex,
+          columnTitle: mappedColumns[oldIndex]?.title
+        });
+        
+        try {
+          // Create new order array
+          const newColumns = [...mappedColumns];
+          const [movedColumn] = newColumns.splice(oldIndex, 1);
+          newColumns.splice(newIndex, 0, movedColumn);
+          
+          // Update orders
+          const reorderData = newColumns.map((col, index) => ({
+            id: col.id,
+            order: index
+          }));
+          
+          await reorderColumns.mutateAsync(reorderData);
+          
+          console.log('handleDragEnd - Column reordered successfully');
+          
+          // Show success toast
+          toast({
+            title: "Column Reordered",
+            description: `"${mappedColumns[oldIndex]?.title}" moved to position ${newIndex + 1}`,
+          });
+          
+        } catch (error) {
+          console.error('handleDragEnd - Failed to reorder column:', error);
+          
+          // Show error toast
+          toast({
+            title: "Error",
+            description: "Failed to reorder column. Please try again.",
+            variant: "destructive",
+          });
+        }
+      }
+      
+      setActiveColumn(null);
+      return;
+    }
+    
+    // Handle task moving between columns
+    const taskId = activeId;
+    const newColumnId = overId;
     
     console.log('handleDragEnd - Task moved:', {
       taskId,
@@ -246,68 +316,83 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex overflow-x-auto gap-6 p-6 pb-4 pr-8 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/50">
-        {(() => {
-          // Track which tasks have been assigned to columns to prevent duplicates
-          const assignedTaskIds = new Set<string>();
-          const columnData = mappedColumns.map((column) => {
-            // Get the status value for this column
-            const columnStatus = getColumnStatus(column.title);
-            
-            // Filter tasks by EXACT status match only, excluding already assigned tasks
-            const columnTasks = projectTasks.filter(
-              (task) => task.status === columnStatus && !assignedTaskIds.has(task.id)
-            );
+      <SortableContext
+        items={mappedColumns.map(col => col.id)}
+        strategy={horizontalListSortingStrategy}
+      >
+        <div className="flex overflow-x-auto gap-6 p-6 pb-4 pr-8 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/50">
+          {(() => {
+            // Track which tasks have been assigned to columns to prevent duplicates
+            const assignedTaskIds = new Set<string>();
+            const columnData = mappedColumns.map((column) => {
+              // Get the status value for this column
+              const columnStatus = getColumnStatus(column.title);
+              
+              // Filter tasks by EXACT status match only, excluding already assigned tasks
+              const columnTasks = projectTasks.filter(
+                (task) => task.status === columnStatus && !assignedTaskIds.has(task.id)
+              );
 
-            // Mark these tasks as assigned
-            columnTasks.forEach(task => assignedTaskIds.add(task.id));
+              // Mark these tasks as assigned
+              columnTasks.forEach(task => assignedTaskIds.add(task.id));
 
-            // Debug logging for each column
-            console.log(`Column ${column.id} (${column.title}):`, {
-              columnId: column.id,
-              columnTitle: column.title,
-              columnStatus: columnStatus,
-              totalTasks: projectTasks.length,
-              matchingTasks: columnTasks.length,
-              allTaskStatuses: projectTasks.map(t => ({ id: t.id, status: t.status, title: t.title })),
-              matchedTasks: columnTasks.map(t => ({ id: t.id, status: t.status, title: t.title }))
+              // Debug logging for each column
+              console.log(`Column ${column.id} (${column.title}):`, {
+                columnId: column.id,
+                columnTitle: column.title,
+                columnStatus: columnStatus,
+                totalTasks: projectTasks.length,
+                matchingTasks: columnTasks.length,
+                allTaskStatuses: projectTasks.map(t => ({ id: t.id, status: t.status, title: t.title })),
+                matchedTasks: columnTasks.map(t => ({ id: t.id, status: t.status, title: t.title }))
+              });
+
+              return {
+                column,
+                tasks: columnTasks
+              };
             });
 
-            return {
-              column,
-              tasks: columnTasks
-            };
-          });
+            // Check for any unassigned tasks
+            const unassignedTasks = projectTasks.filter(task => !assignedTaskIds.has(task.id));
+            if (unassignedTasks.length > 0) {
+              console.warn('KanbanBoard - Unassigned tasks found:', {
+                unassignedTasks: unassignedTasks.map(t => ({ id: t.id, status: t.status, title: t.title })),
+                allColumns: mappedColumns.map(col => ({ title: col.title, status: getColumnStatus(col.title) }))
+              });
+            }
 
-          // Check for any unassigned tasks
-          const unassignedTasks = projectTasks.filter(task => !assignedTaskIds.has(task.id));
-          if (unassignedTasks.length > 0) {
-            console.warn('KanbanBoard - Unassigned tasks found:', {
-              unassignedTasks: unassignedTasks.map(t => ({ id: t.id, status: t.status, title: t.title })),
-              allColumns: mappedColumns.map(col => ({ title: col.title, status: getColumnStatus(col.title) }))
-            });
-          }
-
-          return columnData.map(({ column, tasks }) => (
-            <SortableContext
-              key={column.id}
-              items={tasks.map(t => t.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <KanbanColumn
-                id={column.id}
-                title={column.title}
-                color={column.color}
-                tasks={tasks}
-                updatingTaskId={updateTask.isPending ? activeTask?.id : null}
-              />
-            </SortableContext>
-          ));
-        })()}
-      </div>
+            return columnData.map(({ column, tasks }) => (
+              <SortableContext
+                key={column.id}
+                items={tasks.map(t => t.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <SortableColumn
+                  id={column.id}
+                  title={column.title}
+                  color={column.color}
+                  tasks={tasks}
+                  updatingTaskId={updateTask.isPending ? activeTask?.id : null}
+                />
+              </SortableContext>
+            ));
+          })()}
+        </div>
+      </SortableContext>
       
       <DragOverlay>
         {activeTask ? <TaskCard task={activeTask} isDragging /> : null}
+        {activeColumn ? (
+          <div className="opacity-50 rotate-3 scale-105">
+            <SortableColumn
+              id={activeColumn}
+              title={mappedColumns.find(col => col.id === activeColumn)?.title || ''}
+              color={mappedColumns.find(col => col.id === activeColumn)?.color || 'bg-gray-500'}
+              tasks={[]}
+            />
+          </div>
+        ) : null}
       </DragOverlay>
     </DndContext>
   );

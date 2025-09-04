@@ -278,6 +278,13 @@ class ApiService {
     });
   }
 
+  async reorderColumns(projectId: string, columns: { id: string; order: number }[]) {
+    return this.request(`/projects/${projectId}/columns/reorder`, {
+      method: 'PATCH',
+      body: JSON.stringify({ columns }),
+    });
+  }
+
   async fixColumnOrder(projectId: string) {
     return this.request(`/projects/${projectId}/columns/fix-order`, {
       method: 'POST',
