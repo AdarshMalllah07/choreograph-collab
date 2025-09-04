@@ -1,8 +1,14 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://192.168.29.220:5001/api';
+// Debug environment variables
+console.log('=== Environment Debug ===');
+console.log('VITE_API_URL:', import.meta.env.VITE_API_URL);
+console.log('MODE:', import.meta.env.MODE);
+console.log('DEV:', import.meta.env.DEV);
+console.log('PROD:', import.meta.env.PROD);
+console.log('All env vars:', Object.keys(import.meta.env).filter(key => key.startsWith('VITE_')));
 
-// Debug logging to see which URL is being used
-console.log('Environment VITE_API_URL:', import.meta.env.VITE_API_URL);
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://192.168.29.220:5001/api';
 console.log('Final API_BASE_URL:', API_BASE_URL);
+console.log('=== End Environment Debug ===');
 
 interface ApiResponse<T> {
   data?: T;
@@ -19,12 +25,48 @@ class ApiService {
     };
   }
 
+  private async refreshAccessToken(): Promise<boolean> {
+    const refreshToken = localStorage.getItem('refreshToken');
+    if (!refreshToken) {
+      console.log('No refresh token available');
+      return false;
+    }
+
+    try {
+      console.log('Attempting to refresh access token...');
+      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!response.ok) {
+        console.log('Refresh token failed:', response.status);
+        return false;
+      }
+
+      const data = await response.json();
+      if (data.accessToken) {
+        console.log('Access token refreshed successfully');
+        localStorage.setItem('token', data.accessToken);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Error refreshing token:', error);
+      return false;
+    }
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     try {
       const url = `${API_BASE_URL}${endpoint}`;
+      console.log('Making API request to:', url);
       const response = await fetch(url, {
         ...options,
         headers: this.getAuthHeaders(),
@@ -32,7 +74,42 @@ class ApiService {
       });
 
       if (!response.ok) {
+        console.error('Response not OK:', response.status, response.statusText);
         const errorData = await response.json().catch(() => ({}));
+        console.error('Error data:', errorData);
+        
+        // Handle 401 errors with automatic token refresh
+        if (response.status === 401) {
+          console.log('API Service - 401 error detected, attempting token refresh');
+          
+          // Try to refresh the token
+          const refreshSuccess = await this.refreshAccessToken();
+          
+          if (refreshSuccess) {
+            console.log('Token refreshed, retrying original request');
+            // Retry the original request with new token
+            const retryResponse = await fetch(url, {
+              ...options,
+              headers: this.getAuthHeaders(),
+              ...options,
+            });
+            
+            if (retryResponse.ok) {
+              if (retryResponse.status === 204) {
+                return { message: 'Success' };
+              }
+              const retryData = await retryResponse.json();
+              return { data: retryData };
+            }
+          }
+          
+          // If refresh failed or retry failed, clear tokens
+          console.log('API Service - Token refresh failed, clearing invalid tokens');
+          localStorage.removeItem('token');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('user');
+        }
+        
         throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 

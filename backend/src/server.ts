@@ -16,7 +16,18 @@ dotenv.config();
 const app = express();
 
 app.use(helmet());
-app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') || '*', credentials: true }));
+// Debug CORS configuration
+const corsOrigins = process.env.CORS_ORIGIN?.split(',') || '*';
+console.log('CORS Origins:', corsOrigins);
+
+app.use(cors({ 
+  origin: corsOrigins, 
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+}));
 app.use(express.json({ limit: '1mb' }));
 app.use(morgan('dev'));
 

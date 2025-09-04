@@ -1,17 +1,30 @@
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { useAuthStore } from '@/store/authStore';
+import { useAuth, useCurrentUser } from '@/hooks/useAuth';
 import { LogOut, User, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export function Header() {
-  const { user, logout } = useAuthStore();
+  const { logout } = useAuth();
+  const { data: userData } = useCurrentUser();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await logout();
-    navigate('/login');
+    try {
+      await logout.mutateAsync();
+      // Clear local storage and navigate to login
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      navigate('/auth');
+    } catch (error) {
+      // Even if logout fails, clear local storage and redirect
+      localStorage.removeItem('token');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      navigate('/auth');
+    }
   };
 
   const getInitials = (name: string) => {
@@ -22,6 +35,16 @@ export function Header() {
       .toUpperCase()
       .slice(0, 2);
   };
+
+  // Try to get user from cache first, then from query
+  const user = userData?.data || (() => {
+    try {
+      const cachedUser = localStorage.getItem('user');
+      return cachedUser ? JSON.parse(cachedUser) : null;
+    } catch {
+      return null;
+    }
+  })();
 
   return (
     <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -60,9 +83,9 @@ export function Header() {
                 <span>Settings</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout}>
+              <DropdownMenuItem onClick={handleLogout} disabled={logout.isPending}>
                 <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
+                <span>{logout.isPending ? 'Logging out...' : 'Log out'}</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

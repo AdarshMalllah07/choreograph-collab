@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuthStore } from '@/store/authStore';
+import { useAuth, useCurrentUser } from '@/hooks/useAuth';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -16,7 +16,16 @@ export function SignupForm() {
   const [passwordError, setPasswordError] = useState('');
   const navigate = useNavigate();
   
-  const { signup, isLoading, error } = useAuthStore();
+  const { signup } = useAuth();
+  const { data: userData } = useCurrentUser();
+
+  // Navigate to dashboard when user data is available
+  useEffect(() => {
+    if (userData?.data && localStorage.getItem('token')) {
+      console.log('SignupForm - User data available, navigating to dashboard');
+      navigate('/dashboard');
+    }
+  }, [userData, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,9 +45,19 @@ export function SignupForm() {
       return;
     }
 
-    const success = await signup(name, email, password);
-    if (success) {
-      navigate('/dashboard');
+    console.log('SignupForm - Starting signup process...');
+
+    try {
+      const result = await signup.mutateAsync({ name, email, password });
+      console.log('SignupForm - Signup API response received:', result);
+      
+      // The useAuth hook will automatically handle token storage and user data
+      // We just need to wait for the user data to be available
+      console.log('SignupForm - Signup successful, waiting for user data...');
+      
+    } catch (error) {
+      console.error('SignupForm - Signup failed:', error);
+      // Error is handled by the mutation
     }
   };
 
@@ -62,7 +81,7 @@ export function SignupForm() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={signup.isPending}
               />
             </div>
             <div className="space-y-2">
@@ -74,7 +93,7 @@ export function SignupForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={signup.isPending}
               />
             </div>
             <div className="space-y-2">
@@ -86,7 +105,7 @@ export function SignupForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={signup.isPending}
               />
             </div>
             <div className="space-y-2">
@@ -98,7 +117,7 @@ export function SignupForm() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={signup.isPending}
               />
             </div>
             
@@ -109,19 +128,19 @@ export function SignupForm() {
               </Alert>
             )}
             
-            {error && (
+            {signup.error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>{signup.error.message}</AlertDescription>
               </Alert>
             )}
             
             <Button
               type="submit"
               className="w-full bg-gradient-primary hover:opacity-90"
-              disabled={isLoading || !name || !email || !password || !confirmPassword}
+              disabled={signup.isPending || !name || !email || !password || !confirmPassword}
             >
-              {isLoading ? (
+              {signup.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Creating account...

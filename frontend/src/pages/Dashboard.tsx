@@ -1,56 +1,91 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { KanbanBoard } from '@/components/kanban/KanbanBoard';
 import { ProjectSelector } from '@/components/dashboard/ProjectSelector';
 import { TaskModal } from '@/components/dashboard/TaskModal';
+import { ColumnModal } from '@/components/dashboard/ColumnModal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { useTaskStore } from '@/store/taskStore';
-import { useAuthStore } from '@/store/authStore';
+import { useProjects, useTasks, useColumns } from '@/hooks';
+import { useCurrentUser } from '@/hooks/useAuth';
 import { Plus, BarChart3, CheckCircle, Clock, AlertCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import React from 'react';
 
 export default function Dashboard() {
   const [taskModalOpen, setTaskModalOpen] = useState(false);
+  const [columnModalOpen, setColumnModalOpen] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>();
   const { toast } = useToast();
   
-  const tasks = useTaskStore((state) => state.tasks);
-  const projects = useTaskStore((state) => state.projects);
-  const selectedProject = useTaskStore((state) => state.selectedProject);
-  const isLoading = useTaskStore((state) => state.isLoading);
-  const error = useTaskStore((state) => state.error);
-  const fetchProjects = useTaskStore((state) => state.fetchProjects);
-  const clearError = useTaskStore((state) => state.clearError);
+  const { projects } = useProjects();
+  const { data: userData } = useCurrentUser();
   
-  const user = useAuthStore((state) => state.user);
+  // Only fetch tasks when a project is selected
+  const { tasks } = useTasks(selectedProjectId || '');
+  const { columns } = useColumns(selectedProjectId || '');
 
-  const projectTasks = selectedProject
-    ? tasks.filter((task) => task.projectId === selectedProject.id)
-    : tasks;
+  const user = userData?.data;
+  const projectTasks = Array.isArray(tasks.data?.data) ? tasks.data.data : [];
+  const projectColumns = Array.isArray(columns.data?.data) ? columns.data.data : [];
+  const projectsData = Array.isArray(projects.data?.data) ? projects.data.data : [];
 
+  // Calculate stats dynamically based on actual columns
   const stats = {
     total: projectTasks.length,
-    todo: projectTasks.filter((t) => t.status === 'todo').length,
-    inProgress: projectTasks.filter((t) => t.status === 'in-progress').length,
-    done: projectTasks.filter((t) => t.status === 'done').length,
+    // Map each column to its task count
+    ...Object.fromEntries(
+      projectColumns.map(col => [
+        col.name.toLowerCase().replace(/\s+/g, ''), // Convert "To Do" to "todo"
+        projectTasks.filter(t => {
+          const taskStatus = String(t.status || '').toLowerCase();
+          const columnName = col.name.toLowerCase();
+          
+          // Try exact match first
+          if (taskStatus === columnName) return true;
+          
+          // Handle common variations
+          if (columnName === 'to do' && (taskStatus === 'todo' || taskStatus === 'to-do')) return true;
+          if (columnName === 'in progress' && (taskStatus === 'in-progress' || taskStatus === 'inprogress' || taskStatus === 'doing')) return true;
+          if (columnName === 'done' && (taskStatus === 'completed' || taskStatus === 'finished' || taskStatus === 'complete')) return true;
+          
+          return false;
+        }).length
+      ])
+    )
   };
 
-  // Fetch projects on component mount
-  useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
+  // If no columns, only show total tasks
+  const hasColumns = projectColumns.length > 0;
 
-  // Handle errors
-  useEffect(() => {
-    if (error) {
-      toast({
-        title: "Error",
-        description: error,
-        variant: "destructive",
-      });
-      clearError();
-    }
-  }, [error, toast, clearError]);
+
+
+  // Helper functions for dynamic column stats
+  const getColumnIconColor = (columnName: string): string => {
+    const name = columnName.toLowerCase();
+    if (name.includes('todo') || name.includes('to do')) return 'text-kanban-todo';
+    if (name.includes('progress') || name.includes('doing')) return 'text-kanban-progress';
+    if (name.includes('done') || name.includes('complete')) return 'text-kanban-done';
+    return 'text-muted-foreground';
+  };
+
+  const getColumnIcon = (columnName: string) => {
+    const name = columnName.toLowerCase();
+    if (name.includes('todo') || name.includes('to do')) return AlertCircle;
+    if (name.includes('progress') || name.includes('doing')) return Clock;
+    if (name.includes('done') || name.includes('complete')) return CheckCircle;
+    return BarChart3;
+  };
+
+  const getColumnDescription = (columnName: string): string => {
+    const name = columnName.toLowerCase();
+    if (name.includes('todo') || name.includes('to do')) return 'Tasks pending';
+    if (name.includes('progress') || name.includes('doing')) return 'Currently working on';
+    if (name.includes('done') || name.includes('complete')) return 'Tasks completed';
+    return 'Tasks in this status';
+  };
+
+  const selectedProject = projectsData.find(p => p.id === selectedProjectId);
 
   const handleCreateTask = () => {
     if (!selectedProject) {
@@ -64,7 +99,14 @@ export default function Dashboard() {
     setTaskModalOpen(true);
   };
 
-  if (isLoading && projects.length === 0) {
+  // Auto-select first project if available and none selected
+  React.useEffect(() => {
+    if (projectsData.length > 0 && !selectedProjectId) {
+      setSelectedProjectId(projectsData[0].id);
+    }
+  }, [projectsData, selectedProjectId]);
+
+  if (projects.isLoading && !projects.data) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/10">
         <Header />
@@ -78,7 +120,7 @@ export default function Dashboard() {
     );
   }
 
-  if (projects.length === 0) {
+  if (!projectsData || projectsData.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/10">
         <Header />
@@ -100,13 +142,10 @@ export default function Dashboard() {
                 <p className="text-muted-foreground">
                   Create your first project to start organizing tasks
                 </p>
-                <Button
-                  onClick={() => fetchProjects()}
-                  className="bg-gradient-primary hover:opacity-90"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Project
-                </Button>
+                <ProjectSelector 
+                  selectedProjectId={selectedProjectId}
+                  onProjectSelect={setSelectedProjectId}
+                />
               </div>
             </CardContent>
           </Card>
@@ -144,59 +183,98 @@ export default function Dashboard() {
               </p>
             </CardContent>
           </Card>
-          <Card className="bg-gradient-card border-border/50">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">To Do</CardTitle>
-              <AlertCircle className="h-4 w-4 text-kanban-todo" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.todo}</div>
-              <p className="text-xs text-muted-foreground">
-                Tasks pending
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="bg-gradient-card border-border/50">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">In Progress</CardTitle>
-              <Clock className="h-4 w-4 text-kanban-progress" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.inProgress}</div>
-              <p className="text-xs text-muted-foreground">
-                Currently working on
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="bg-gradient-card border-border/50">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completed</CardTitle>
-              <CheckCircle className="h-4 w-4 text-kanban-done" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.done}</div>
-              <p className="text-xs text-muted-foreground">
-                Tasks completed
-              </p>
-            </CardContent>
-          </Card>
+          
+          {hasColumns ? (
+            // Render dynamic stats based on actual columns
+            projectColumns.map((column, index) => {
+              const columnKey = column.name.toLowerCase().replace(/\s+/g, '');
+              const taskCount = stats[columnKey] || 0;
+              const iconColor = getColumnIconColor(column.name);
+              const Icon = getColumnIcon(column.name);
+              const description = getColumnDescription(column.name);
+              
+              return (
+                <Card key={column.id} className="bg-gradient-card border-border/50">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">{column.name}</CardTitle>
+                    <Icon className={`h-4 w-4 ${iconColor}`} />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{taskCount}</div>
+                    <p className="text-xs text-muted-foreground">
+                      {description}
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            })
+          ) : (
+            // Show message when no columns exist
+            <>
+              <Card className="bg-gradient-card border-border/50">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">No Columns</CardTitle>
+                  <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">-</div>
+                  <p className="text-xs text-muted-foreground">
+                    Create columns to organize tasks
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-card border-border/50">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">No Columns</CardTitle>
+                  <Clock className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">-</div>
+                  <p className="text-xs text-muted-foreground">
+                    Create columns to organize tasks
+                  </p>
+                </CardContent>
+              </Card>
+              <Card className="bg-gradient-card border-border/50">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">No Columns</CardTitle>
+                  <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">-</div>
+                  <p className="text-xs text-muted-foreground">
+                    Create columns to organize tasks
+                  </p>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
 
         {/* Project & Task Controls */}
         <div className="flex items-center justify-between">
-          <ProjectSelector />
-          <Button
-            onClick={handleCreateTask}
-            className="bg-gradient-primary hover:opacity-90"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
+          <ProjectSelector 
+            selectedProjectId={selectedProjectId}
+            onProjectSelect={setSelectedProjectId}
+          />
+          <div className="flex items-center space-x-2">
+            <Button
+              onClick={handleCreateTask}
+              className="bg-gradient-primary hover:opacity-90"
+              disabled={!selectedProject}
+            >
               <Plus className="h-4 w-4 mr-2" />
-            )}
-            New Task
-          </Button>
+              New Task
+            </Button>
+            <Button
+              onClick={() => setColumnModalOpen(true)}
+              variant="outline"
+              disabled={!selectedProject}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Column
+            </Button>
+          </div>
         </div>
 
         {/* Kanban Board */}
@@ -208,7 +286,7 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <KanbanBoard />
+              <KanbanBoard projectId={selectedProject.id} />
             </CardContent>
           </Card>
         ) : (
@@ -226,7 +304,10 @@ export default function Dashboard() {
         )}
       </main>
 
-      <TaskModal open={taskModalOpen} onOpenChange={setTaskModalOpen} />
+      <TaskModal open={taskModalOpen} onOpenChange={setTaskModalOpen} projectId={selectedProjectId} />
+      {selectedProjectId && (
+        <ColumnModal open={columnModalOpen} onOpenChange={setColumnModalOpen} projectId={selectedProjectId} />
+      )}
     </div>
   );
 }

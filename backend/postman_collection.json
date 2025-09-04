@@ -39,7 +39,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"name\": \"Test\",\n  \"email\": \"test@example.com\",\n  \"password\": \"secret123\"\n}"
+							"raw": "{\n  \"name\": \"Ganesh\",\n  \"email\": \"ganeshshivhare068@gmail.com\",\n  \"password\": \"Ganesh.shiv068\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/auth/signup",
@@ -63,7 +63,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"secret123\"\n}"
+							"raw": "{\n  \"email\": \"ganeshshivhare068@gmail.com\",\n  \"password\": \"Ganesh.shiv068\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/auth/login",

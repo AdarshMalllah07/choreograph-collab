@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuthStore } from '@/store/authStore';
+import { useAuth, useCurrentUser } from '@/hooks/useAuth';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -13,7 +13,16 @@ export function LoginForm() {
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
   
-  const { login, isLoading, error } = useAuthStore();
+  const { login } = useAuth();
+  const { data: userData } = useCurrentUser();
+
+  // Navigate to dashboard when user data is available
+  useEffect(() => {
+    if (userData?.data && localStorage.getItem('token')) {
+      console.log('LoginForm - User data available, navigating to dashboard');
+      navigate('/dashboard');
+    }
+  }, [userData, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,9 +31,19 @@ export function LoginForm() {
       return;
     }
 
-    const success = await login(email, password);
-    if (success) {
-      navigate('/dashboard');
+    console.log('LoginForm - Starting login process...');
+    
+    try {
+      const result = await login.mutateAsync({ email, password });
+      console.log('LoginForm - Login API response received:', result);
+      
+      // The useAuth hook will automatically handle token storage and user data
+      // We just need to wait for the user data to be available
+      console.log('LoginForm - Login successful, waiting for user data...');
+      
+    } catch (error) {
+      console.error('LoginForm - Login failed:', error);
+      // Error is handled by the mutation
     }
   };
 
@@ -48,7 +67,7 @@ export function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={login.isPending}
               />
             </div>
             <div className="space-y-2">
@@ -60,23 +79,23 @@ export function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={login.isPending}
               />
             </div>
             
-            {error && (
+            {login.error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>{login.error.message}</AlertDescription>
               </Alert>
             )}
             
             <Button
               type="submit"
               className="w-full bg-gradient-primary hover:opacity-90"
-              disabled={isLoading || !email || !password}
+              disabled={login.isPending || !email || !password}
             >
-              {isLoading ? (
+              {login.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Signing in...
